@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COVID Severity Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+<!-- Background grid -->
+<div class="bg-grid"></div>
+
+<!-- Theme toggle -->
+<button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle dark mode">
+  <span class="theme-icon">☀</span>
+</button>
+
+<!-- Header -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo-mark">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="13" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M14 7v14M7 14h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="site-title">CovidSeverity<span class="accent">AI</span></h1>
+      <p class="site-sub">AdaBoost-powered clinical assessment tool</p>
+    </div>
+  </div>
+</header>
+
+<!-- Main -->
+<main class="main-wrap">
+  <form id="predForm" novalidate>
+
+    <!-- ── Basic Info ── -->
+    <section class="card" data-section="basic">
+      <div class="card-head">
+        <div class="section-num">01</div>
+        <div>
+          <h2 class="section-title" data-tooltip="Enter the patient's age, sex, temperature, and oxygen saturation level.">
+            Basic Information
+            <span class="info-dot"></span>
+          </h2>
+          <p class="tooltip-text" id="tt-basic">Hover a field label to see guidance</p>
+        </div>
+      </div>
+      <div class="field-grid">
+        <div class="field-wrap">
+          <label class="field-label" data-hint="Patient's age in complete years. Range: 0–120.">Age <span class="hint-icon">?</span></label>
+          <input type="number" name="Age" placeholder="e.g. 45" min="0" max="120" required class="field-input">
+        </div>
+        <div class="field-wrap">
+          <label class="field-label" data-hint="Biological sex. Female = 0, Male = 1 (used as numeric feature).">Gender <span class="hint-icon">?</span></label>
+          <select name="Gender" class="field-input">
+            <option value="0">Female</option>
+            <option value="1">Male</option>
+          </select>
+        </div>
+        <div class="field-wrap">
+          <label class="field-label" data-hint="Body temperature in Celsius. Normal is ~36.5–37.5 °C.">Temperature (°C) <span class="hint-icon">?</span></label>
+          <input type="number" step="0.1" name="Temp" placeholder="e.g. 37.2" class="field-input">
+        </div>
+        <div class="field-wrap">
+          <label class="field-label" data-hint="Blood oxygen saturation (%). Normal ≥ 95%. Below 90% is critical.">SpO₂ (%) <span class="hint-icon">?</span></label>
+          <input type="number" name="SPO2" placeholder="e.g. 96" min="0" max="100" class="field-input">
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Vitals ── -->
+    <section class="card" data-section="vitals">
+      <div class="card-head">
+        <div class="section-num">02</div>
+        <div>
+          <h2 class="section-title">Vitals &amp; Scores</h2>
+          <p class="tooltip-text">Key respiratory and physiological indicators</p>
+        </div>
+      </div>
+      <div class="field-grid">
+        <div class="field-wrap">
+          <label class="field-label" data-hint="Breaths per minute. Normal adult range: 12–20. >30 is severe.">Respiratory Rate <span class="hint-icon">?</span></label>
+          <input type="number" name="Respiratory rate(breaths per minute)" placeholder="e.g. 18" class="field-input">
+        </div>
+        <div class="field-wrap">
+          <label class="field-label" data-hint="Body Mass Index = weight(kg) / height(m)². Normal: 18.5–24.9.">BMI <span class="hint-icon">?</span></label>
+          <input type="number" step="0.1" name="BMI" placeholder="e.g. 23.5" class="field-input">
+        </div>
+        <div class="field-wrap">
+          <label class="field-label" data-hint="Quick SOFA Score (0–3). Scores ≥2 indicate high risk of sepsis.">qSOFA Score <span class="hint-icon">?</span></label>
+          <input type="number" name="qSOFA SCORE" placeholder="0–3" min="0" max="3" class="field-input">
+        </div>
+        <div class="field-wrap">
+          <label class="field-label" data-hint="CO-RADS score from HRCT scan (1–6). Higher = more typical for COVID-19.">CORADS Score (HRCT) <span class="hint-icon">?</span></label>
+          <input type="number" name="CORADS SCORE ON HRCT" placeholder="1–6" min="1" max="6" class="field-input">
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Comorbidities ── -->
+    <section class="card" data-section="comorbid">
+      <div class="card-head">
+        <div class="section-num">03</div>
+        <div>
+          <h2 class="section-title">Comorbidities</h2>
+          <p class="tooltip-text">Pre-existing conditions that may affect severity</p>
+        </div>
+      </div>
+      <div class="field-grid" style="grid-template-columns: 1fr;">
+        <div class="field-wrap">
+          <label class="field-label" data-hint="Whether the patient has any known pre-existing medical conditions (diabetes, hypertension, heart disease, etc.).">Comorbidity Present <span class="hint-icon">?</span></label>
+          <select name="comorbidity_flag" id="comorbidity_select" class="field-input" onchange="toggleComorbidity()">
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+        </div>
+      </div>
+      <div id="comorbidity_textbox" class="comorbid-details hidden">
+        <label class="field-label">Describe conditions</label>
+        <textarea name="comorbidity_details" placeholder="e.g. Type 2 diabetes, hypertension, chronic kidney disease..." maxlength="2000" rows="3" class="field-input textarea-field"></textarea>
+        <span class="char-count">Max 2000 characters — note: this field is for reference only and does not affect the model prediction.</span>
+      </div>
+    </section>
+
+    <!-- ── Symptoms ── -->
+    <section class="card" data-section="symptoms">
+      <div class="card-head">
+        <div class="section-num">04</div>
+        <div>
+          <h2 class="section-title">Symptoms</h2>
+          <p class="tooltip-text">Presenting symptoms reported by the patient</p>
+        </div>
+      </div>
+      <div class="symptom-grid">
+        <label class="symptom-toggle" data-hint="Fever is defined as body temperature above 38 °C.">
+          <input type="hidden" name="fever" value="0">
+          <input type="checkbox" class="sym-check" data-field="fever">
+          <span class="sym-pill">
+            <span class="sym-icon">🌡</span>
+            <span>Fever</span>
+            <span class="sym-badge">No</span>
+          </span>
+        </label>
+        <label class="symptom-toggle" data-hint="Persistent dry or wet cough lasting more than 2 days.">
+          <input type="hidden" name="cough" value="0">
+          <input type="checkbox" class="sym-check" data-field="cough">
+          <span class="sym-pill">
+            <span class="sym-icon">💨</span>
+            <span>Cough</span>
+            <span class="sym-badge">No</span>
+          </span>
+        </label>
+        <label class="symptom-toggle" data-hint="Breathlessness or shortness of breath even at rest or during mild activity.">
+          <input type="hidden" name="breathlessness" value="0">
+          <input type="checkbox" class="sym-check" data-field="breathlessness">
+          <span class="sym-pill">
+            <span class="sym-icon">🫁</span>
+            <span>Breathlessness</span>
+            <span class="sym-badge">No</span>
+          </span>
+        </label>
+        <label class="symptom-toggle" data-hint="Headache of new onset, not explained by other causes.">
+          <input type="hidden" name="headache" value="0">
+          <input type="checkbox" class="sym-check" data-field="headache">
+          <span class="sym-pill">
+            <span class="sym-icon">🧠</span>
+            <span>Headache</span>
+            <span class="sym-badge">No</span>
+          </span>
+        </label>
+      </div>
+    </section>
+
+    <!-- ── Lab Values ── -->
+    <section class="card" data-section="labs">
+      <div class="card-head">
+        <div class="section-num">05</div>
+        <div>
+          <h2 class="section-title">Lab Parameters</h2>
+          <p class="tooltip-text">Blood and biochemical markers relevant to infection severity</p>
+        </div>
+      </div>
+      <div class="field-grid">
+        <div class="field-wrap">
+          <label class="field-label" data-hint="Hemoglobin in g/dL. Normal: 13.5–17.5 (men), 12–15.5 (women). Low levels suggest anaemia.">Hemoglobin (g/dL) <span class="hint-icon">?</span></label>
+          <input type="number" step="0.1" name="HEMOGLOBIN" placeholder="e.g. 13.5" class="field-input">
+        </div>
+        <div class="field-wrap">
+          <label class="field-label" data-hint="Total Leukocyte Count (WBC count) ×10³/µL. Normal: 4–11. High = infection/inflammation.">TLC Count <span class="hint-icon">?</span></label>
+          <input type="number" step="0.1" name="TLC COUNT" placeholder="e.g. 8.5" class="field-input">
+        </div>
+        <div class="field-wrap">
+          <label class="field-label" data-hint="Platelet count ×10³/µL. Normal: 150–400. Low platelets may indicate severe disease.">Platelet Count <span class="hint-icon">?</span></label>
+          <input type="number" step="0.1" name="PLATELET COUNT" placeholder="e.g. 220" class="field-input">
+        </div>
+        <div class="field-wrap">
+          <label class="field-label" data-hint="C-Reactive Protein in mg/L. Elevated CRP (>10) signals significant inflammation.">CRP (mg/L) <span class="hint-icon">?</span></label>
+          <input type="number" step="0.1" name="C-REACTIVE PROTEINS" placeholder="e.g. 5.2" class="field-input">
+        </div>
+      </div>
+    </section>
+
+    <!-- Submit -->
+    <button type="submit" class="submit-btn" id="submitBtn">
+      <span id="btnText">Analyse Severity</span>
+      <span id="btnSpinner" class="spinner hidden"></span>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" id="btnArrow">
+        <path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+  </form>
+
+  <!-- Result Panel -->
+  <div id="resultPanel" class="result-panel hidden">
+    <div class="result-inner">
+      <button class="result-close" onclick="closeResult()">✕</button>
+      <div class="result-badge" id="resultBadge"></div>
+      <h2 class="result-severity" id="resultSeverity"></h2>
+      <p class="result-advice" id="resultAdvice"></p>
+
+      <div class="confidence-wrap">
+        <p class="conf-title">Model confidence</p>
+        <div id="confBars"></div>
+      </div>
+      <p class="result-disclaimer">⚠ This tool is for research and educational use only. Always consult a qualified medical professional for clinical decisions.</p>
+    </div>
+  </div>
+
+  <!-- Error toast -->
+  <div id="errorToast" class="toast hidden"></div>
+
+</main>
+
+<!-- Floating hint tooltip -->
+<div id="hintBox" class="hint-box hidden"></div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
