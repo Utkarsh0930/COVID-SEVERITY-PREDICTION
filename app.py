@@ -6,7 +6,7 @@ import os
 
 app = Flask(__name__)
 
-# ✅ Safe paths (Render compatible)
+# ✅  This is safe path (Render compatible)
 BASE_DIR = Path(__file__).parent
 
 model = joblib.load(BASE_DIR / "adaboost_covid_model.joblib")
